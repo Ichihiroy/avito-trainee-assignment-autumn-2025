@@ -330,10 +330,6 @@ const Stats = () => {
                 <Download size={18} />
                 Экспорт CSV
               </button>
-              <button className="btn btn-secondary" onClick={exportToPDF}>
-                <FileText size={18} />
-                Экспорт PDF
-              </button>
             </div>
           </div>
           <div className="period-selector">
