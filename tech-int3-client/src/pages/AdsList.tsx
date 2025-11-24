@@ -6,7 +6,8 @@ import AdCard from "../components/AdCard";
 import Filters from "../components/Filters";
 import Pagination from "../components/Pagination";
 import Loading from "../components/Loading";
-import { X } from "lucide-react";
+import ProgressBar from "../components/ProgressBar";
+import { X, CheckCircle, XCircle, List } from "lucide-react";
 import "./AdsList.css";
 
 const AdsList = () => {
@@ -18,6 +19,9 @@ const AdsList = () => {
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
 
   // Parse filters from URL
   const getFiltersFromURL = useCallback((): AdsListParams => {
@@ -130,6 +134,77 @@ const AdsList = () => {
     navigate(`/item/${id}`);
   };
 
+  const handleSelect = (id: number, selected: boolean) => {
+    const newSelected = new Set(selectedIds);
+    if (selected) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    setSelectedIds(new Set());
+  };
+
+  const selectAll = () => {
+    const allIds = new Set(
+      ads.filter((ad) => ad.status === "pending").map((ad) => ad.id)
+    );
+    setSelectedIds(allIds);
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set());
+  };
+
+  const handleBulkApprove = async () => {
+    if (selectedIds.size === 0) return;
+
+    try {
+      setBulkActionLoading(true);
+      const promises = Array.from(selectedIds).map((id) =>
+        adsApi.approveAd(id)
+      );
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      await loadAds();
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || "Ошибка при одобрении объявлений"
+      );
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkReject = async () => {
+    if (selectedIds.size === 0) return;
+
+    try {
+      setBulkActionLoading(true);
+      const promises = Array.from(selectedIds).map((id) =>
+        adsApi.rejectAd(id, {
+          reason: "Другое",
+          comment: "Массовое отклонение",
+        })
+      );
+      await Promise.all(promises);
+      setSelectedIds(new Set());
+      setSelectionMode(false);
+      await loadAds();
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message || "Ошибка при отклонении объявлений"
+      );
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
   const hasActiveFilters = () => {
     const params = getFiltersFromURL();
     return !!(
@@ -157,51 +232,105 @@ const AdsList = () => {
   }
 
   return (
-    <div className="ads-list-page fade-in">
-      <div className="page-header">
-        <h2>Объявления на модерации</h2>
-        <p className="text-secondary">Всего объявлений: {totalItems}</p>
-      </div>
-
-      <Filters
-        onFilterChange={handleFilterChange}
-        currentFilters={getFiltersFromURL()}
-      />
-
-      {hasActiveFilters() && (
-        <div className="active-filters">
-          <span>Активные фильтры</span>
-          <button className="btn btn-secondary" onClick={handleResetFilters}>
-            <X size={16} />
-            Сбросить все
+    <>
+      <ProgressBar isLoading={loading || bulkActionLoading} />
+      <div className="ads-list-page fade-in">
+        <div className="page-header">
+          <div>
+            <h2>Объявления на модерации</h2>
+            <p className="text-secondary">Всего объявлений: {totalItems}</p>
+          </div>
+          <button
+            className={`btn ${selectionMode ? "btn-primary" : "btn-secondary"}`}
+            onClick={toggleSelectionMode}
+          >
+            <List size={20} />
+            {selectionMode ? "Отменить выбор" : "Выбрать несколько"}
           </button>
         </div>
-      )}
 
-      {ads.length === 0 ? (
-        <div className="no-results">
-          <p>Объявлений не найдено</p>
-        </div>
-      ) : (
-        <>
-          <div className="ads-grid">
-            {ads.map((ad) => (
-              <AdCard
-                key={ad.id}
-                ad={ad}
-                onClick={() => handleAdClick(ad.id)}
-              />
-            ))}
+        {selectionMode && (
+          <div className="bulk-actions-bar">
+            <div className="bulk-actions-info">
+              <span className="selected-count">
+                Выбрано: <strong>{selectedIds.size}</strong>
+              </span>
+              <button className="btn btn-link" onClick={selectAll}>
+                Выбрать все на модерации
+              </button>
+              {selectedIds.size > 0 && (
+                <button className="btn btn-link" onClick={deselectAll}>
+                  Снять выбор
+                </button>
+              )}
+            </div>
+            {selectedIds.size > 0 && (
+              <div className="bulk-actions-buttons">
+                <button
+                  className="btn btn-success"
+                  onClick={handleBulkApprove}
+                  disabled={bulkActionLoading}
+                >
+                  <CheckCircle size={18} />
+                  Одобрить ({selectedIds.size})
+                </button>
+                <button
+                  className="btn btn-danger"
+                  onClick={handleBulkReject}
+                  disabled={bulkActionLoading}
+                >
+                  <XCircle size={18} />
+                  Отклонить ({selectedIds.size})
+                </button>
+              </div>
+            )}
           </div>
+        )}
 
-          <Pagination
-            currentPage={getFiltersFromURL().page || 1}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-          />
-        </>
-      )}
-    </div>
+        <Filters
+          onFilterChange={handleFilterChange}
+          currentFilters={getFiltersFromURL()}
+        />
+
+        {hasActiveFilters() && (
+          <div className="active-filters">
+            <span>Активные фильтры</span>
+            <button className="btn btn-secondary" onClick={handleResetFilters}>
+              <X size={16} />
+              Сбросить все
+            </button>
+          </div>
+        )}
+
+        {ads.length === 0 ? (
+          <div className="no-results">
+            <p>Объявлений не найдено</p>
+          </div>
+        ) : (
+          <>
+            <div className="ads-grid">
+              {ads.map((ad, index) => (
+                <AdCard
+                  key={ad.id}
+                  ad={ad}
+                  onClick={() => handleAdClick(ad.id)}
+                  onSelect={handleSelect}
+                  isSelected={selectedIds.has(ad.id)}
+                  selectionMode={selectionMode}
+                  index={index}
+                />
+              ))}
+            </div>
+
+            <Pagination
+              currentPage={getFiltersFromURL().page || 1}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </>
+        )}
+      </div>
+    </>
   );
 };
 

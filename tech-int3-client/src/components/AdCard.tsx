@@ -1,19 +1,58 @@
 import type { Advertisement } from "../types/api";
 import { Calendar, DollarSign, Tag, AlertCircle } from "lucide-react";
+import { motion } from "framer-motion";
 import "./AdCard.css";
 
 interface AdCardProps {
   ad: Advertisement;
   onClick: () => void;
+  onSelect?: (id: number, selected: boolean) => void;
+  isSelected?: boolean;
+  selectionMode?: boolean;
+  index?: number;
 }
 
-const AdCard: React.FC<AdCardProps> = ({ ad, onClick }) => {
+const AdCard: React.FC<AdCardProps> = ({
+  ad,
+  onClick,
+  onSelect,
+  isSelected = false,
+  selectionMode = false,
+  index = 0,
+}) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString("ru-RU", {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
+  };
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onSelect) {
+      onSelect(ad.id, !isSelected);
+    }
+  };
+
+  const handleCardClick = () => {
+    if (selectionMode && onSelect) {
+      onSelect(ad.id, !isSelected);
+    } else {
+      onClick();
+    }
+  };
+
+  const cardVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: {
+        duration: 0.4,
+        delay: index * 0.05,
+      },
+    },
   };
 
   const formatPrice = (price: number) => {
@@ -25,7 +64,27 @@ const AdCard: React.FC<AdCardProps> = ({ ad, onClick }) => {
   };
 
   return (
-    <div className="ad-card" onClick={onClick}>
+    <motion.div
+      className={`ad-card ${isSelected ? "selected" : ""} ${
+        selectionMode ? "selection-mode" : ""
+      }`}
+      onClick={handleCardClick}
+      variants={cardVariants}
+      initial="hidden"
+      animate="visible"
+      whileHover={{ y: -4 }}
+      transition={{ duration: 0.2 }}
+    >
+      {selectionMode && (
+        <div className="ad-card-checkbox" onClick={handleCheckboxClick}>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={() => {}}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
       {ad.priority === "urgent" && (
         <div className="ad-card-badge urgent">
           <AlertCircle size={14} />
@@ -47,7 +106,6 @@ const AdCard: React.FC<AdCardProps> = ({ ad, onClick }) => {
 
         <div className="ad-card-meta">
           <div className="ad-card-meta-item">
-            <DollarSign size={16} />
             <span>{formatPrice(ad.price)}</span>
           </div>
           <div className="ad-card-meta-item">
@@ -67,12 +125,12 @@ const AdCard: React.FC<AdCardProps> = ({ ad, onClick }) => {
             {ad.status === "rejected" && "Отклонено"}
             {ad.status === "draft" && "Черновик"}
           </span>
-          {ad.priority === "urgent" && (
+          {/* {ad.priority === "urgent" && (
             <span className="badge badge-urgent">Срочно</span>
-          )}
+          )} */}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

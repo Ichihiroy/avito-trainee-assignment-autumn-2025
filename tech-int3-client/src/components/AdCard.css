@@ -3,14 +3,45 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   cursor: pointer;
-  transition: var(--transition);
+  transition: box-shadow 0.3s ease;
   box-shadow: 0 2px 8px var(--shadow);
   position: relative;
 }
 
 .ad-card:hover {
-  transform: translateY(-4px);
   box-shadow: 0 8px 24px var(--shadow-lg);
+}
+
+.ad-card.selection-mode {
+  cursor: pointer;
+}
+
+.ad-card.selected {
+  box-shadow: 0 0 0 3px var(--primary);
+  transform: translateY(-2px);
+}
+
+.ad-card-checkbox {
+  position: absolute;
+  top: var(--spacing-md);
+  left: var(--spacing-md);
+  z-index: 20;
+  background-color: rgba(255, 255, 255, 0.98);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  border: 2px solid var(--border-color);
+}
+
+.ad-card-checkbox input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--primary);
+  margin: 0;
 }
 
 .ad-card-badge {
